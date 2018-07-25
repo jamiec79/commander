@@ -1,2 +1,2 @@
-# commander
+# SWAPBlocks commander
 
