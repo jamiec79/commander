@@ -774,7 +774,7 @@ function update_swapblocks {
 
         unset TMP_PASS
 #       forever restart $forever_process
-#           forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json
+#           forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json
     else
         echo "SWAPBlocks Node is already up to date!"
         sleep 2
@@ -938,7 +938,7 @@ three(){
                     echo -e "\n$(red "       ✘ SWAPBlocks Node process is not running")\n"
             echo -e "$(green "            Updating SWAPBlocks Node...")\n"
             update_swapblocks
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
                     pause
             fi
@@ -968,7 +968,7 @@ four(){
         # Here should come the snap choice
         snap_menu
                 echo -e "$(green "            Starting SWAPBlocks Node...")"
-        forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json >&- 2>&-
+        forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
                 echo -e "\n$(green "    ✔ SWAPBlocks Node was successfully started")\n"
                 pause
         else
@@ -983,7 +983,7 @@ four(){
         snap_menu
         echo -e "$(green "            Starting SWAPBlocks Node...")"
         cd $SBXdir
-                forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json >&- 2>&-
+                forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
                 echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
                 pause
         fi
@@ -1008,7 +1008,7 @@ five(){
         else
             echo -e "\n$(red "       ✘ SWAPBlocks Node process is not running")\n"
             echo -e "$(green "            Starting SWAPBlocks Node...")\n"
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
             pause
         fi
@@ -1052,7 +1052,7 @@ start(){
         else
             echo -e "$(green "            Starting SWAPBlocks Node...")\n"
             cd $SBXdir
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.mainnet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
             cd $parent
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
             sleep 1
