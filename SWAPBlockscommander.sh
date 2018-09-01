@@ -81,13 +81,24 @@ LOC_SERVER="http://localhost:4100"
 ADDRESS=""
 
 SNAPDIR="$HOME/snapshots"
+SNAPURL="https://snapshots.swapblocks.io/current"
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 re='^[0-9]+$' # For numeric checks
 
-#pubkey="02a3e3e5fc36565ab4275ddfee1592667f6c46f5e9aa7528499511d65c5e82a7db"
-
 # Logfile
 log="install_swapblocks.log"
+
+alpha_seed1=("136.144.141.118:4100" "seed01")
+alpha_seed2=("164.132.216.107:4100" "seed02")
+alpha_seed3=("167.99.82.39:4100" "seed03")
+
+apicall="/api/loader/status/sync"
+
+declare -a nodes=(alpha_seed1[@] alpha_seed2[@] alpha_seed3[@])
+
+arraylength=${#nodes[@]}
 
 # ----------------------------------
 # Arrays
@@ -130,9 +141,25 @@ pause(){
 # Current Network Height
 
 function net_height {
-    local heights=$(curl -s "$LOC_SERVER/api/peers" | jq -r '.peers[] | .height')
-    
-    highest=$(echo "${heights[*]}" | sort -nr | head -n1)
+    touch $HOME/tout.txt
+    for n in {1..$arraylength..$arraylength}; do
+      for (( i=1; i<${arraylength}+1; i++ )); do
+        saddr=${!nodes[i-1]:0:1}
+        echo $i $(curl -m 3 -s $saddr$apicall | cut -f 5 -d ":" | sed 's/,.*//' | sed 's/}$//') >> $HOME/tout.txt &
+      done
+        wait
+    done
+
+    # Array read
+    while read ind line; do
+      height[$ind]=$line # assign array values
+    done < $HOME/tout.txt
+    rm $HOME/tout.txt
+
+    # Finding the highest seednodes block
+    IFS=$'\n'
+    highest=($(sort -nr <<<"${height[*]}"))
+    unset IFS
 }
 
 # Find parent PID
@@ -186,14 +213,15 @@ function proc_vars {
 
 #PSQL Queries
 query() {
-PUBKEY="$(psql -d swapblocks -t -c 'SELECT ENCODE("publicKey",'"'"'hex'"'"') as "publicKey" FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
-DNAME="$(psql -d swapblocks -t -c 'SELECT username FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
-PROD_BLOCKS="$(psql -d swapblocks -t -c 'SELECT producedblocks FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
-MISS_BLOCKS="$(psql -d swapblocks -t -c 'SELECT missedblocks FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
-#BALANCE="$(psql -d swapblocks -t -c 'SELECT (balance/100000000.0) as balance FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | sed -e 's/^[[:space:]]*//')"
-BALANCE="$(psql -d swapblocks -t -c 'SELECT to_char(("balance"/100000000.0), '"'FM 999,999,999,990D00000000'"' ) as balance FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
-HEIGHT="$(psql -d swapblocks -t -c 'SELECT height FROM blocks ORDER BY HEIGHT DESC LIMIT 1;' | xargs)"
-RANK="$(psql -d swapblocks -t -c 'WITH RANK AS (SELECT DISTINCT "publicKey", "vote", "round", row_number() over (order by "vote" desc nulls last) as "rownum" FROM mem_delegates where "round" = (select max("round") from mem_delegates) ORDER BY "vote" DESC) SELECT "rownum" FROM RANK WHERE "publicKey" = '"'03cfafb2ca8cf7ce70f848456b1950dc7901946f93908e4533aace997c242ced8a'"';' | xargs)"
+    PUBKEY="$(psql -d swapblocks -t -c 'SELECT ENCODE("publicKey",'"'"'hex'"'"') as "publicKey" FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    DNAME="$(psql -d swapblocks -t -c 'SELECT username FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    PROD_BLOCKS="$(psql -d swapblocks -t -c 'SELECT producedblocks FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    MISS_BLOCKS="$(psql -d swapblocks -t -c 'SELECT missedblocks FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    #BALANCE="$(psql -d swapblocks -t -c 'SELECT (balance/100000000.0) as balance FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | sed -e 's/^[[:space:]]*//')"
+    BALANCE="$(psql -d swapblocks -t -c 'SELECT to_char(("balance"/100000000.0), '"'FM 999,999,999,990D00000000'"' ) as balance FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    FORGED="$(psql -d swapblocks -t -c 'SELECT to_char((("fees" + "rewards")/100000000.0), '"'FM 999,999,999,990D00000000'"' ) as total_forged FROM mem_accounts WHERE "address" = '"'"$ADDRESS"'"' ;' | xargs)"
+    HEIGHT="$(psql -d swapblocks -t -c 'SELECT height FROM blocks ORDER BY HEIGHT DESC LIMIT 1;' | xargs)"
+    RANK="$(psql -d swapblocks -t -c 'WITH RANK AS (SELECT DISTINCT "publicKey", "vote", "round", row_number() over (order by "vote" desc nulls last) as "rownum" FROM mem_delegates where "round" = (select max("round") from mem_delegates) ORDER BY "vote" DESC) SELECT "rownum" FROM RANK WHERE "publicKey" = '"'"$PUBKEY"'"';' | xargs)"
 }
 
 # Stats Address Change
@@ -201,7 +229,7 @@ change_address() {
     echo "$(yellow "   Enter your delegate address for Stats")"
     echo "$(yellow "    WITHOUT QUOTES, followed by 'ENTER'")"
     read -e -r -p "$(yellow " :") " inaddress
-    while [ ! "${inaddress:0:1}" == "A" ] ; do
+    while [ ! "${inaddress:0:1}" == "X" ] ; do
         echo -e "\n$(ired "   Enter delegate ADDRESS, NOT the SECRET!")\n"
         read -e -r -p "$(yellow " :") " inaddress
     done
@@ -210,25 +238,36 @@ change_address() {
     sed -i "1,/\(.*ADDRESS\=\)/s#\(.*ADDRESS\=\)\(.*\)#\1"\"$inaddress\""#" $DIR/$BASH_SOURCE
 }
 
+# Snapshot URL Change
+change_snapurl() {
+  DID_BREAK=0
+
+  echo -e "\n$(yellow " Press CTRL+C followed by ENTER to return to menu")\n"
+  echo "$(yellow "          Enter your snapshot URL")"
+  echo "$(yellow "    WITHOUT QUOTES, followed by 'ENTER'")"
+  trap "DID_BREAK=1" SIGINT
+  read -e -r -p "$(yellow " :") " insnapurl
+
+  while [ ! "${insnapurl:0:4}" == "http" ] ; do
+    if [ "$DID_BREAK" -eq 0 ] ; then
+      echo -e "\n$(yellow " Use Ctrl+C followed by ENTER to return to menu")"
+      echo -e "\n      $(ired "   The URL must begin with 'http'   ")\n"
+      read -e -r -p "$(yellow " :") " insnapurl
+    else
+      break
+    fi
+  done
+
+  if [ "$DID_BREAK" -eq 0 ] ; then
+    SNAPURL=$insnapurl
+    sed -i "1,/\(.*SNAPURL\=\)/s#\(.*SNAPURL\=\)\(.*\)#\1"\"$insnapurl\""#" $DIR/$BASH_SOURCE
+  fi
+}
 
 # Forging Turn
 turn() {
-    DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-#   echo $DIR
-#   echo "$BASH_SOURCE"
-#   echo "$ADDRESS"
     if [ "$ADDRESS" == "" ] ; then
         change_address
-#       echo "$(yellow "   Enter your delegate address for Stats")"
-#       echo "$(yellow "    WITHOUT QUOTES, followed by 'ENTER'")"
-#       read -e -r -p "$(yellow " :") " inaddress
-#       while [ ! "${inaddress:0:1}" == "A" ] ; do
-#           echo -e "\n$(ired "   Enter delegate ADDRESS, NOT the SECRET!")\n"
-#           read -e -r -p "$(yellow " :") " inaddress
-#       done
-#       ADDRESS=$inaddress
-##      sed -i "s#\(.*ADDRESS\=\)\( .*\)#\1 "\"$inaddress\""#" $DIR/$BASH_SOURCE
-#       sed -i "1,/\(.*ADDRESS\=\)/s#\(.*ADDRESS\=\)\(.*\)#\1"\"$inaddress\""#" $DIR/$BASH_SOURCE
     fi
 #   pause
 while true; do
@@ -240,6 +279,16 @@ while true; do
     queue=`curl --connect-timeout 3 -f -s $LOC_SERVER/api/delegates/getNextForgers?limit=51 | jq ".delegates"`
     is_forging=`curl -s --connect-timeout 1 $LOC_SERVER/api/delegates/forging/status?publicKey=$PUBKEY 2>/dev/null | jq ".enabled"`
     is_syncing=`curl -s --connect-timeout 1 $LOC_SERVER/api/loader/status/sync 2>/dev/null | jq ".syncing"`
+    BLOCK_SUM=$((MISS_BLOCKS+PROD_BLOCKS))
+
+    if ! [[ $BLOCK_SUM -eq 0 ]]
+    then
+        RATIO=$((20000 * PROD_BLOCKS / BLOCK_SUM % 2 + 10000 * PROD_BLOCKS / BLOCK_SUM))
+        [[ $PROD_BLOCKS == 0 ]] && RATIO=0 || RATIO=$(sed 's/..$/.&/;t;s/^.$/.0&/' <<< $RATIO)
+    else
+        RATIO=0
+    fi
+
     pos=0
     for position in $queue
     do
@@ -264,7 +313,9 @@ while true; do
 #   echo -e "$(green "Public Key:")\n$(yellow "$PUBKEY")\n"
     echo -e "$(green "      Forged Blocks    : ")$(yellow "$PROD_BLOCKS")"
     echo -e "$(green "      Missed Blocks    : ")$(yellow "$MISS_BLOCKS")"
-    echo -e "$(green "      SWAPBlocks Balance      : ")$(yellow "$BALANCE")"
+    echo -e "$(green "      Productivity     : ")$(yellow "$RATIO"%)"
+    echo -e "$(green "      Total forged     : ")$(yellow "$FORGED")"
+    echo -e "$(green "      SBX Balance      : ")$(yellow "$BALANCE")"
     echo
     echo -e "\n$(yellow "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")"
         if [ -e $SBXdir/app.js ]; then
@@ -544,11 +595,11 @@ fi
 if [ "$(ls -A $SNAPDIR)" ]; then
     if [[ $(expr `date +%s` - `stat -c %Y $SNAPDIR/current`) -gt 900 ]]; then
         echo -e "$(yellow " Existing Current snapshot is older than 15 minutes")"
-            read -e -r -p "$(yellow "\n Download from SWAPBlocks.IO? (Y) or use Local (N) ")" -i "Y" YN
+            read -e -r -p "$(yellow "\n Download from ${SNAPURL}? (Y) or use Local (N) ")" -i "Y" YN
             if [[ "$YN" =~ [Yy]$ ]]; then
-                echo -e "$(yellow "\n     Downloading latest snapshot from SWAPBlocks.IO\n")"
+                echo -e "$(yellow "\n     Downloading latest snapshot\n")"
                 rm $SNAPDIR/current
-                wget -nv https://snapshots.swapblocks.io/current -O $SNAPDIR/current
+                wget -nv $SNAPURL -O $SNAPDIR/current
                 echo -e "$(yellow "\n              Download finished\n")"
             fi
     fi
@@ -584,8 +635,8 @@ else
         echo -e "$(red "    No snapshots found in $SNAPDIR")"
         read -e -r -p "$(yellow "\n Do you like to download the latest snapshot? (Y/n) ")" -i "Y" YN
         if [[ "$YN" =~ [Yy]$ ]]; then
-        echo -e "$(yellow "\n     Downloading current snapshot from SWAPBlocks.IO\n")"
-                wget -nv https://snapshots.swapblocks.io/current -O $SNAPDIR/current
+        echo -e "$(yellow "\n     Downloading current snapshot\n")"
+                wget -nv $SNAPURL -O $SNAPDIR/current
         echo -e "$(yellow "\n              Download finished\n")"
         fi
 
@@ -949,44 +1000,55 @@ three(){
 
 }
 
-four(){
-        asciiart
-        proc_vars
-        if [ "$node" != "" ] && [ "$node" != "0" ]; then
-                echo -e "$(green "       Instance of SWAPBlocks Node found with:")"
-                echo -e "$(green "       System PID: $node, Forever PID $forever_process")"
-                echo -e "$(green "       Directory: $SBXdir")\n"
-                echo -e "\n$(green "            Stopping SWAPBlocks Node...")\n"
-        cd $SBXdir
-        forever stop $forever_process >&- 2>&-
-        echo -e "$(green "             Dropping SWAPBlocks DB...")\n"
-                drop_db
-        drop_user
-        echo -e "$(green "             Creating SWAPBlocks DB...")\n"
-        create_db
+four() {
+  asciiart
+  proc_vars
 
-        # Here should come the snap choice
-        snap_menu
-                echo -e "$(green "            Starting SWAPBlocks Node...")"
-        forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
-                echo -e "\n$(green "    ✔ SWAPBlocks Node was successfully started")\n"
-                pause
-        else
-                echo -e "\n$(red "       ✘ SWAPBlocks Node process is not running")\n"
-                echo -e "$(green "             Dropping SWAPBlocks DB...")\n"
-        drop_db
-        drop_user
-        echo -e "$(green "             Creating SWAPBlocks DB...")\n"
-        create_db
+  echo -e "    $(ired "                                        ")"
+  echo -e "    $(ired "   WARNING! This option will stop all   ")"
+  echo -e "    $(ired "   running SBX Node processes, remove   ")"
+  echo -e "    $(ired "   and rebuild the databases! Are you   ")"
+  echo -e "    $(ired "   REALLY sure?                         ")"
+  echo -e "    $(ired "                                        ")"
+  read -e -r -p "$(yellow "\n    Type (Y) to proceed or (N) to cancel: ")" -i "N" YN
 
-        # Here should come the snap choice
-        snap_menu
-        echo -e "$(green "            Starting SWAPBlocks Node...")"
-        cd $SBXdir
-                forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
-                echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
-                pause
-        fi
+  if [[ "$YN" =~ [Yy]$ ]]; then
+    if [ "$node" != "" ] && [ "$node" != "0" ]; then
+      echo -e "$(green "       Instance of SBX Node found with:")"
+      echo -e "$(green "       System PID: $node, Forever PID $forever_process")"
+      echo -e "$(green "       Directory: $SBXdir")\n"
+      echo -e "\n$(green "            Stopping SBX Node...")\n"
+      cd $SBXdir
+      forever stop $forever_process >&- 2>&-
+      echo -e "$(green "             Dropping SBX DB...")\n"
+      drop_db
+      drop_user
+      echo -e "$(green "             Creating SBX DB...")\n"
+      create_db
+
+      # Here should come the snap choice
+      snap_menu
+      echo -e "$(green "            Starting SBX Node...")"
+      forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+      echo -e "\n$(green "    ✔ SBX Node was successfully started")\n"
+      pause
+    else
+      echo -e "\n$(red "       ✘ SBX Node process is not running")\n"
+      echo -e "$(green "             Dropping SBX DB...")\n"
+      drop_db
+      drop_user
+      echo -e "$(green "             Creating SBX DB...")\n"
+      create_db
+
+      # Here should come the snap choice
+      snap_menu
+      echo -e "$(green "            Starting SBX Node...")"
+      cd $SBXdir
+      forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+      echo -e "$(green "    ✔ SBX Node was successfully started")\n"
+      pause
+    fi
+  fi
 }
 
 five(){
@@ -1030,10 +1092,9 @@ do
 # HERE COMES THE GITHUB CHECK
         git_upd_check
         sub_menu
-        read_sub_options
+        read_sub_options || break
 done
 
-sub_menu
 ##turn
 #pause
 }
@@ -1140,20 +1201,23 @@ log(){
 }
 
 subfive(){
-        clear
+    clear
     asciiart
     purge_pgdb
 
 }
 
 subsix(){
-        clear
-        asciiart
-        change_address
-
+    clear
+    asciiart
+    change_address
 }
 
-
+subseven() {
+    clear
+    asciiart
+    change_snapurl
+}
 
 # Menu
 show_menus() {
@@ -1176,7 +1240,7 @@ show_menus() {
     echo "              R. Restart SWAPBlocks"
     echo "              K. Kill SWAPBlocks"
     echo "              S. Node Status"
-        echo "              L. Node Log"
+    echo "              L. Node Log"
     echo "              0. Exit"
     echo
     tput sgr0
@@ -1193,9 +1257,10 @@ sub_menu() {
     echo "           2. Install SWAPBlocks Explorer"
     echo "           3. Install Snapshot script"
     echo "           4. Install Restart script"
-    echo "           5. Purge PostgeSQL"
+    echo "           5. Purge PostgreSQL"
     echo "           6. Replace Delegate Address"
-    echo "           0. Exit to Main Manu"
+    echo "           7. Replace Snapshot URL"
+    echo "           0. Exit to Main Menu"
     echo
     echo "         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     echo
@@ -1204,7 +1269,7 @@ sub_menu() {
 
 read_options(){
     local choice
-    read -p "        Enter choice [1 - 7,A,R,K,S,L]: " choice
+    read -p "        Enter choice [0 - 7,A,R,K,S,L]: " choice
     case $choice in
         1) one ;;
         2) two ;;
@@ -1213,9 +1278,9 @@ read_options(){
         5) five ;;
         6) six ;;
         7) seven ;;
-        A) start ;;
-        R) restart ;;
-        K) killit;;
+        [aA]) start ;;
+        [rR]) restart ;;
+        [kK]) killit;;
         [sS]) turn;;
         [lL]) log;;
         0) exit 0;;
@@ -1226,7 +1291,7 @@ read_options(){
 
 read_sub_options(){
     local choice1
-    read -p "          Enter choice [1 - 7]: " choice1
+    read -p "          Enter choice [0 - 7]: " choice1
     case $choice1 in
         1) subone ;;
         2) subtwo ;;
@@ -1234,8 +1299,8 @@ read_sub_options(){
         4) four ;;
         5) subfive ;;
         6) subsix ;;
-        7) seven ;;
-        0) break ;;
+        6) subseven ;;
+        0) return 1 ;;
         *) echo -e "$(red "             Incorrect option!")" && sleep 1
     esac
 }
