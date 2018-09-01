@@ -81,6 +81,7 @@ LOC_SERVER="http://localhost:4100"
 ADDRESS=""
 
 SNAPDIR="$HOME/snapshots"
+SNAPURL="https://snapshots.swapblocks.io/current"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -237,6 +238,31 @@ change_address() {
     sed -i "1,/\(.*ADDRESS\=\)/s#\(.*ADDRESS\=\)\(.*\)#\1"\"$inaddress\""#" $DIR/$BASH_SOURCE
 }
 
+# Snapshot URL Change
+change_snapurl() {
+  DID_BREAK=0
+
+  echo -e "\n$(yellow " Press CTRL+C followed by ENTER to return to menu")\n"
+  echo "$(yellow "          Enter your snapshot URL")"
+  echo "$(yellow "    WITHOUT QUOTES, followed by 'ENTER'")"
+  trap "DID_BREAK=1" SIGINT
+  read -e -r -p "$(yellow " :") " insnapurl
+
+  while [ ! "${insnapurl:0:4}" == "http" ] ; do
+    if [ "$DID_BREAK" -eq 0 ] ; then
+      echo -e "\n$(yellow " Use Ctrl+C followed by ENTER to return to menu")"
+      echo -e "\n      $(ired "   The URL must begin with 'http'   ")\n"
+      read -e -r -p "$(yellow " :") " insnapurl
+    else
+      break
+    fi
+  done
+
+  if [ "$DID_BREAK" -eq 0 ] ; then
+    SNAPURL=$insnapurl
+    sed -i "1,/\(.*SNAPURL\=\)/s#\(.*SNAPURL\=\)\(.*\)#\1"\"$insnapurl\""#" $DIR/$BASH_SOURCE
+  fi
+}
 
 # Forging Turn
 turn() {
@@ -570,11 +596,11 @@ fi
 if [ "$(ls -A $SNAPDIR)" ]; then
     if [[ $(expr `date +%s` - `stat -c %Y $SNAPDIR/current`) -gt 900 ]]; then
         echo -e "$(yellow " Existing Current snapshot is older than 15 minutes")"
-            read -e -r -p "$(yellow "\n Download from SWAPBlocks.IO? (Y) or use Local (N) ")" -i "Y" YN
+            read -e -r -p "$(yellow "\n Download from ${SNAPURL}? (Y) or use Local (N) ")" -i "Y" YN
             if [[ "$YN" =~ [Yy]$ ]]; then
-                echo -e "$(yellow "\n     Downloading latest snapshot from SWAPBlocks.IO\n")"
+                echo -e "$(yellow "\n     Downloading latest snapshot\n")"
                 rm $SNAPDIR/current
-                wget -nv https://snapshots.swapblocks.io/current -O $SNAPDIR/current
+                wget -nv $SNAPURL -O $SNAPDIR/current
                 echo -e "$(yellow "\n              Download finished\n")"
             fi
     fi
@@ -610,8 +636,8 @@ else
         echo -e "$(red "    No snapshots found in $SNAPDIR")"
         read -e -r -p "$(yellow "\n Do you like to download the latest snapshot? (Y/n) ")" -i "Y" YN
         if [[ "$YN" =~ [Yy]$ ]]; then
-        echo -e "$(yellow "\n     Downloading current snapshot from SWAPBlocks.IO\n")"
-                wget -nv https://snapshots.swapblocks.io/current -O $SNAPDIR/current
+        echo -e "$(yellow "\n     Downloading current snapshot\n")"
+                wget -nv $SNAPURL -O $SNAPDIR/current
         echo -e "$(yellow "\n              Download finished\n")"
         fi
 
@@ -1176,20 +1202,23 @@ log(){
 }
 
 subfive(){
-        clear
+    clear
     asciiart
     purge_pgdb
 
 }
 
 subsix(){
-        clear
-        asciiart
-        change_address
-
+    clear
+    asciiart
+    change_address
 }
 
-
+subseven() {
+    clear
+    asciiart
+    change_snapurl
+}
 
 # Menu
 show_menus() {
@@ -1212,7 +1241,7 @@ show_menus() {
     echo "              R. Restart SWAPBlocks"
     echo "              K. Kill SWAPBlocks"
     echo "              S. Node Status"
-        echo "              L. Node Log"
+    echo "              L. Node Log"
     echo "              0. Exit"
     echo
     tput sgr0
@@ -1231,6 +1260,7 @@ sub_menu() {
     echo "           4. Install Restart script"
     echo "           5. Purge PostgreSQL"
     echo "           6. Replace Delegate Address"
+    echo "           7. Replace Snapshot URL"
     echo "           0. Exit to Main Menu"
     echo
     echo "         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -1262,7 +1292,7 @@ read_options(){
 
 read_sub_options(){
     local choice1
-    read -p "          Enter choice [0 - 6]: " choice1
+    read -p "          Enter choice [0 - 7]: " choice1
     case $choice1 in
         1) subone ;;
         2) subtwo ;;
@@ -1270,6 +1300,7 @@ read_sub_options(){
         4) four ;;
         5) subfive ;;
         6) subsix ;;
+        6) subseven ;;
         0) return 1 ;;
         *) echo -e "$(red "             Incorrect option!")" && sleep 1
     esac
