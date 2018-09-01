@@ -266,7 +266,6 @@ change_snapurl() {
 
 # Forging Turn
 turn() {
-    DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     if [ "$ADDRESS" == "" ] ; then
         change_address
     fi
