@@ -81,7 +81,7 @@ LOC_SERVER="http://localhost:4100"
 ADDRESS=""
 
 SNAPDIR="$HOME/snapshots"
-SNAPURL="https://snapshots.swapblocks.io/current"
+SNAPURL="http://sbx-snap.geops.net/latest"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
