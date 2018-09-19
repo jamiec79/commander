@@ -90,9 +90,9 @@ re='^[0-9]+$' # For numeric checks
 # Logfile
 log="install_swapblocks.log"
 
-alpha_seed1=("136.144.141.118:4100" "seed01")
-alpha_seed2=("164.132.216.107:4100" "seed02")
-alpha_seed3=("167.99.82.39:4100" "seed03")
+alpha_seed1=("136.144.141.118:4111" "seed01")
+alpha_seed2=("164.132.216.107:4111" "seed02")
+alpha_seed3=("167.99.82.39:4111" "seed03")
 
 apicall="/api/loader/status/sync"
 
@@ -718,7 +718,7 @@ function inst_swapblocks {
 #   proc_vars
     cd $HOME
         mkdir swapblocks-node
-        git clone https://github.com/SwapBlocks/swapblocks-node.git 2>/dev/null
+        git clone -b testnet https://github.com/SwapBlocks/swapblocks-node.git 2>/dev/null
         cd swapblocks-node
     git checkout $GIT_ORIGIN 2>/dev/null
     git pull origin $GIT_ORIGIN 2>/dev/null
