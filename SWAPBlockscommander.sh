@@ -74,7 +74,7 @@ fi
 
 EDIT=nano
 
-GIT_ORIGIN=alphanet
+GIT_ORIGIN=testnet
 
 LOC_SERVER="http://localhost:4100"
 
@@ -811,7 +811,7 @@ function update_swapblocks {
             cd $SBXdir
 #            forever stop app.js
         TMP_PASS=$(jq -r '.forging.secret | @csv' config.$GIT_ORIGIN.json)
-        mv config.alphanet.json ../
+        mv config.testnet.json ../
             git pull origin $GIT_ORIGIN
         git checkout $GIT_ORIGIN
             npm install
@@ -825,18 +825,18 @@ function update_swapblocks {
 
         unset TMP_PASS
 #       forever restart $forever_process
-#           forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json
+#           forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json
     else
         echo "SWAPBlocks Node is already up to date!"
         sleep 2
     fi
 }
 
-# Put the password in config.alphanet.json
+# Put the password in config.testnet.json
 function secret {
     echo -e "\n"
 
-    #Put check if SBXdir is empty, if it is stays only config.alphanet.json
+    #Put check if SBXdir is empty, if it is stays only config.testnet.json
     echo -e "$(yellow " Enter (copy/paste) your private key (secret)")"
     echo -e "$(yellow "    (WITHOUT QUOTES!) followed by 'Enter'")"
     read -e -r -p ": " secret
@@ -874,7 +874,7 @@ one(){
         sleep 1
         proc_vars
         log_rotate
-        config="$parent/config.alphanet.json"
+        config="$parent/config.testnet.json"
 #       echo "$config" 2>/dev/null
 #       pause
         if  [ ! -e $config ] ; then
@@ -908,14 +908,14 @@ two(){
                     fi
             echo -e "$(yellow "    Backing up configuration file to $parent")\n"
             sleep 1
-            if [ -e $parent/config.alphanet.json ] ; then
+            if [ -e $parent/config.testnet.json ] ; then
                 read -e -r -p "$(yellow "    Backup file exists! Overwrite? (Y/N): ")" -i "Y" keys
                 if [ "$keys" == "Y" ]; then
-                    cp $SBXdir/config.alphanet.json $parent
+                    cp $SBXdir/config.testnet.json $parent
                     cd $parent
                 fi
             else
-                cp $SBXdir/config.alphanet.json $parent
+                cp $SBXdir/config.testnet.json $parent
                 cd $parent
             fi
             echo -e "$(yellow "        Removing SWAPBlocks Node directory...")\n"
@@ -925,11 +925,11 @@ two(){
             drop_user
             one
             echo ""
-            if [ -e $parent/config.alphanet.json ] ; then
+            if [ -e $parent/config.testnet.json ] ; then
                 read -e -r -p "$(yellow " Do you want to restore your config? (Y/N): ")" -i "Y" keys
 #               echo "Break1"; pause
                 if [ "$keys" == "Y" ]; then
-                    cp $parent/config.alphanet.json $SBXdir
+                    cp $parent/config.testnet.json $SBXdir
                     echo -e "\n$(green " ✔ Config was restored in $SBXdir")\n"
                     read -e -r -p "$(yellow " Do you want to start SWAPBlocks Node now? (Y/N): ")" -i "Y" keys
                     if [ "$keys" == "Y" ]; then
@@ -949,10 +949,10 @@ two(){
             sleep 1
             one
             proc_vars
-            if [ -e $parent/config.alphanet.json ] ; then
+            if [ -e $parent/config.testnet.json ] ; then
                 read -e -r -p "$(yellow " Do you want to restore your config? (Y/N): ")" -i "Y" keys
                 if [ "$keys" == "Y" ]; then
-                    cp $parent/config.alphanet.json $SBXdir
+                    cp $parent/config.testnet.json $SBXdir
                     echo -e "\n$(green " ✔ Config was restored in $SBXdir")\n"
                 fi
             else
@@ -989,7 +989,7 @@ three(){
                     echo -e "\n$(red "       ✘ SWAPBlocks Node process is not running")\n"
             echo -e "$(green "            Updating SWAPBlocks Node...")\n"
             update_swapblocks
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json >&- 2>&-
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
                     pause
             fi
@@ -1029,7 +1029,7 @@ four() {
       # Here should come the snap choice
       snap_menu
       echo -e "$(green "            Starting SBX Node...")"
-      forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+      forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json >&- 2>&-
       echo -e "\n$(green "    ✔ SBX Node was successfully started")\n"
       pause
     else
@@ -1044,7 +1044,7 @@ four() {
       snap_menu
       echo -e "$(green "            Starting SBX Node...")"
       cd $SBXdir
-      forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+      forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json >&- 2>&-
       echo -e "$(green "    ✔ SBX Node was successfully started")\n"
       pause
     fi
@@ -1070,7 +1070,7 @@ five(){
         else
             echo -e "\n$(red "       ✘ SWAPBlocks Node process is not running")\n"
             echo -e "$(green "            Starting SWAPBlocks Node...")\n"
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json >&- 2>&-
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
             pause
         fi
@@ -1113,7 +1113,7 @@ start(){
         else
             echo -e "$(green "            Starting SWAPBlocks Node...")\n"
             cd $SBXdir
-            forever start app.js --genesis genesisBlock.alphanet.json --config config.alphanet.json >&- 2>&-
+            forever start app.js --genesis genesisBlock.testnet.json --config config.testnet.json >&- 2>&-
             cd $parent
             echo -e "$(green "    ✔ SWAPBlocks Node was successfully started")\n"
             sleep 1
