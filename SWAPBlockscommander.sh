@@ -76,7 +76,7 @@ EDIT=nano
 
 GIT_ORIGIN=testnet
 
-LOC_SERVER="http://localhost:4100"
+LOC_SERVER="http://localhost:4111"
 
 ADDRESS=""
 
