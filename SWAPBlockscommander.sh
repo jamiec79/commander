@@ -738,7 +738,7 @@ function create_db {
                 sudo service postgresql start
         fi
         sleep 1
-#       sudo -u postgres dropdb --if-exists swapblocks
+#       sudo -u postgres dropdb --if-exists test_swapblocks
 #       sleep 1
 #       sudo -u postgres dropuser --if-exists $USER # 2>&1
 #       sleep 1
@@ -746,7 +746,7 @@ function create_db {
     sudo -u postgres psql -c "update pg_database set encoding = 6, datcollate = 'en_US.UTF8', datctype = 'en_US.UTF8' where datname = 'template1';" >&- 2>&-
         sudo -u postgres psql -c "CREATE USER $USER WITH PASSWORD 'password' CREATEDB;" >&- 2>&-
         sleep 1
-        createdb swapblocks
+        createdb test_swapblocks
 }
 
 # Check if DB exists
@@ -791,7 +791,7 @@ function drop_db {
         if [ -z "$pgres" ]; then
                 sudo service postgresql start
         fi
-        dropdb --if-exists swapblocks
+        dropdb --if-exists test_swapblocks
 }
 
 function drop_user {
